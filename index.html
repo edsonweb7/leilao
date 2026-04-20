@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AvaliaAI — Risco de Leilão | Análise Inteligente de Imóveis em Leilão</title>
+<meta name="description" content="Descubra o risco real antes de dar seu lance. O Termômetro de Risco da AvaliaAI analisa ocupação, débitos, processos e valor de mercado para proteger seu investimento em leilões imobiliários.">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#080806;--white:#F8F7F2;--cream:#F0EDE4;
+  --gold:#C9A84C;--gold-d:#8A6520;--gold-l:#F5EDD0;
+  --green:#1C3D2E;--green-m:#2A5E42;--green-l:#E4EDE8;
+  --gray:#6B6B62;--gray-l:#E8E8E0;--gray-ll:#F4F4EF;
+  --red:#8B1A1A;--red-bright:#ef4444;
+  --amber:#eab308;--safe:#22c55e;
+}
+html{scroll-behavior:smooth}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--black);color:var(--white);overflow-x:hidden}
+
+/* ── CURSOR ── */
+*{cursor:default}
+a,button{cursor:pointer}
+
+/* ── NOISE ── */
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity:.4}
+
+/* ── NAV ── */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;padding:0 3rem;height:68px;
+  border-bottom:1px solid rgba(201,168,76,.15);
+  background:rgba(8,8,6,.88);backdrop-filter:blur(20px)}
+.nav-logo{font-family:'Playfair Display',serif;font-weight:700;font-size:20px;
+  color:var(--white);text-decoration:none;letter-spacing:-.3px}
+.nav-logo span{color:var(--gold)}
+.nav-tag{margin-left:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;
+  color:var(--red-bright);border:1px solid rgba(239,68,68,.5);padding:3px 8px;letter-spacing:.08em;
+  background:rgba(239,68,68,.08)}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:2rem}
+.nav-right a{font-size:13px;color:rgba(248,247,242,.55);text-decoration:none;
+  letter-spacing:.02em;transition:color .2s}
+.nav-right a:hover{color:var(--white)}
+.nav-cta{background:var(--gold);color:var(--black) !important;padding:8px 20px;
+  font-size:12px;font-weight:600;letter-spacing:.04em;text-decoration:none;
+  transition:all .2s}
+.nav-cta:hover{background:var(--white);color:var(--black) !important}
+.nav-back{font-size:12px;color:rgba(248,247,242,.4);text-decoration:none;
+  display:flex;align-items:center;gap:6px;margin-right:1rem;transition:color .2s}
+.nav-back:hover{color:var(--gold)}
+
+/* ── MAX ── */
+.max{max-width:1080px;margin:0 auto}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+  padding:100px 3rem 4rem;position:relative;overflow:hidden}
+.hero-grid{position:absolute;inset:0;z-index:0;
+  background-image:
+    linear-gradient(rgba(239,68,68,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(239,68,68,.03) 1px,transparent 1px);
+  background-size:80px 80px}
+.hero-glow{position:absolute;top:-20%;right:-10%;width:700px;height:700px;
+  border-radius:50%;background:radial-gradient(circle,rgba(139,26,26,.25) 0%,transparent 70%);
+  z-index:0;animation:pulse-glow 4s ease-in-out infinite}
+.hero-glow2{position:absolute;bottom:-30%;left:-10%;width:500px;height:500px;
+  border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,.1) 0%,transparent 65%);
+  z-index:0}
+@keyframes pulse-glow{0%,100%{opacity:.6}50%{opacity:1}}
+.hero-inner{position:relative;z-index:1;max-width:1080px;margin:0 auto;width:100%}
+.hero-eyebrow{display:flex;align-items:center;gap:12px;margin-bottom:1.75rem}
+.eyebrow-line{width:40px;height:1px;background:var(--red-bright)}
+.eyebrow-text{font-family:'IBM Plex Mono',monospace;font-size:11px;
+  color:var(--red-bright);letter-spacing:.1em;text-transform:uppercase}
+.hero-layout{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
+h1{font-family:'Playfair Display',serif;font-weight:900;
+  font-size:clamp(2.5rem,5.5vw,4.5rem);line-height:1.05;
+  letter-spacing:-2px;margin-bottom:1.25rem}
+h1 .accent{color:var(--gold);font-style:italic}
+h1 .danger{color:var(--red-bright)}
+.hero-desc{font-size:clamp(14px,1.6vw,17px);color:rgba(248,247,242,.65);
+  line-height:1.85;max-width:520px;margin-bottom:2.5rem;font-weight:300}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:2.5rem}
+.btn-primary{background:var(--gold);color:var(--black);padding:14px 32px;
+  font-size:14px;font-weight:700;letter-spacing:.05em;text-decoration:none;
+  display:inline-flex;align-items:center;gap:8px;transition:all .2s;border:none;
+  font-family:'IBM Plex Sans',sans-serif}
+.btn-primary:hover{background:var(--white);transform:translateY(-2px);
+  box-shadow:0 8px 24px rgba(201,168,76,.3)}
+.btn-outline{background:transparent;color:var(--white);padding:14px 32px;
+  font-size:14px;letter-spacing:.05em;text-decoration:none;
+  border:1px solid rgba(248,247,242,.2);display:inline-flex;align-items:center;gap:8px;
+  transition:all .2s}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.hero-badges{display:flex;gap:10px;flex-wrap:wrap}
+.hb{display:flex;align-items:center;gap:6px;padding:6px 14px;
+  background:rgba(248,247,242,.04);border:1px solid rgba(248,247,242,.08);
+  font-size:11px;color:rgba(248,247,242,.55);letter-spacing:.02em}
+.hb-dot{width:6px;height:6px;border-radius:50%;background:var(--safe);flex-shrink:0}
+.hb-dot.warn{background:var(--amber)}
+.hb-dot.danger{background:var(--red-bright)}
+
+/* ── TERMÔMETRO DEMO ── */
+.termo-demo{background:rgba(8,8,6,.8);border:1px solid rgba(201,168,76,.25);
+  padding:2rem;backdrop-filter:blur(10px)}
+.td-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}
+.td-title{font-family:'IBM Plex Mono',monospace;font-size:10px;
+  color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
+.td-live{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;
+  font-size:10px;color:var(--safe);letter-spacing:.06em}
+.td-live-dot{width:7px;height:7px;border-radius:50%;background:var(--safe);
+  animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.td-imovel{font-size:12px;color:rgba(248,247,242,.5);margin-bottom:1.25rem;
+  padding:.75rem;background:rgba(248,247,242,.03);border:1px solid rgba(248,247,242,.06)}
+.td-imovel strong{color:var(--white);font-size:13px}
+.termo-track{height:20px;border-radius:2px;
+  background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);
+  position:relative;overflow:hidden;margin-bottom:.5rem}
+.termo-track::after{content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,rgba(0,0,0,.15) 0,rgba(0,0,0,.15) 1px,transparent 1px,transparent 10%)}
+.termo-needle{position:absolute;top:-3px;bottom:-3px;width:3px;
+  background:var(--white);border-radius:2px;box-shadow:0 0 10px rgba(255,255,255,.6);
+  transition:left 2s cubic-bezier(.34,1.56,.64,1);left:72%}
+.termo-labels{display:flex;justify-content:space-between;
+  font-family:'IBM Plex Mono',monospace;font-size:9px;
+  color:rgba(248,247,242,.3);letter-spacing:.04em;margin-bottom:1rem}
+.termo-score{font-family:'Playfair Display',serif;font-size:56px;font-weight:900;
+  text-align:center;line-height:1;color:#ef4444;
+  text-shadow:0 0 30px rgba(239,68,68,.4);margin-bottom:.25rem}
+.termo-rating{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;color:#ef4444;margin-bottom:1.25rem}
+.td-rows{display:flex;flex-direction:column;gap:0}
+.td-row{display:flex;justify-content:space-between;align-items:center;
+  padding:.625rem 0;border-bottom:1px solid rgba(248,247,242,.05);font-size:12px}
+.td-row:last-child{border:none}
+.td-k{color:rgba(248,247,242,.4)}
+.td-v{font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:11px}
+.td-v.safe{color:var(--safe)}
+.td-v.warn{color:var(--amber)}
+.td-v.danger{color:var(--red-bright)}
+.td-blur-row{position:relative;overflow:hidden}
+.td-v.blurred{filter:blur(7px);user-select:none}
+.unlock-hint{display:flex;align-items:center;justify-content:center;
+  gap:6px;margin-top:1.25rem;padding:.875rem;
+  background:linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.06));
+  border:1px solid rgba(201,168,76,.3);cursor:pointer;transition:all .2s}
+.unlock-hint:hover{background:rgba(201,168,76,.18);box-shadow:0 4px 16px rgba(201,168,76,.2)}
+.unlock-hint span{font-size:12px;color:var(--gold);font-weight:600;letter-spacing:.03em}
+
+/* ── SECTIONS ── */
+section{padding:6rem 3rem;position:relative}
+.sec-eyebrow{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem}
+.sec-eyebrow .eyebrow-line{background:var(--gold)}
+.sec-title{font-family:'Playfair Display',serif;font-weight:700;
+  font-size:clamp(1.8rem,3.5vw,2.8rem);line-height:1.15;letter-spacing:-1px;margin-bottom:1rem}
+.sec-sub{font-size:16px;color:rgba(248,247,242,.55);line-height:1.8;
+  max-width:600px;font-weight:300}
+
+/* ── COMO FUNCIONA ── */
+.como{background:rgba(248,247,242,.02);border-top:1px solid rgba(248,247,242,.06)}
+.steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:3rem}
+.step{padding:2rem 1.5rem;background:rgba(248,247,242,.02);border:1px solid rgba(248,247,242,.07);
+  position:relative;overflow:hidden;transition:all .3s}
+.step:hover{border-color:rgba(201,168,76,.3);background:rgba(248,247,242,.04);transform:translateY(-4px)}
+.step::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  opacity:0;transition:opacity .3s}
+.step:hover::before{opacity:1}
+.step-num{font-family:'IBM Plex Mono',monospace;font-size:36px;font-weight:500;
+  color:rgba(201,168,76,.2);margin-bottom:.875rem}
+.step h3{font-size:15px;font-weight:700;margin-bottom:.5rem}
+.step p{font-size:12px;color:rgba(248,247,242,.45);line-height:1.7}
+.step-icon{font-size:24px;margin-bottom:1rem;display:block}
+
+/* ── RISCOS ── */
+.riscos{background:var(--black)}
+.riscos-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start;margin-top:3rem}
+.risco-list{display:flex;flex-direction:column;gap:1rem}
+.risco-item{display:flex;gap:1.25rem;align-items:flex-start;padding:1.25rem;
+  border:1px solid rgba(248,247,242,.06);transition:all .25s;position:relative;overflow:hidden}
+.risco-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.risco-item.danger-r::before{background:var(--red-bright)}
+.risco-item.warn-r::before{background:var(--amber)}
+.risco-item.safe-r::before{background:var(--safe)}
+.risco-item:hover{border-color:rgba(201,168,76,.2);background:rgba(248,247,242,.02)}
+.ri-icon{font-size:22px;flex-shrink:0;margin-top:1px}
+.ri-text h4{font-size:14px;font-weight:700;margin-bottom:4px}
+.ri-text p{font-size:12px;color:rgba(248,247,242,.45);line-height:1.65}
+.ri-badge{display:inline-flex;align-items:center;gap:4px;margin-top:.5rem;
+  font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;
+  padding:3px 9px;text-transform:uppercase}
+.ri-badge.d{background:rgba(239,68,68,.1);color:var(--red-bright);border:1px solid rgba(239,68,68,.25)}
+.ri-badge.w{background:rgba(234,179,8,.1);color:var(--amber);border:1px solid rgba(234,179,8,.25)}
+.ri-badge.s{background:rgba(34,197,94,.1);color:var(--safe);border:1px solid rgba(34,197,94,.25)}
+
+/* Dashboard demo right side */
+.demo-card{background:rgba(248,247,242,.02);border:1px solid rgba(248,247,242,.08);padding:2rem}
+.dc-label{font-family:'IBM Plex Mono',monospace;font-size:10px;
+  color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:1.5rem}
+.dc-imovel{font-size:13px;font-weight:600;color:var(--white);margin-bottom:.5rem}
+.dc-end{font-size:11px;color:rgba(248,247,242,.4);margin-bottom:1.5rem;
+  font-family:'IBM Plex Mono',monospace}
+.score-big{text-align:center;padding:1.5rem;background:rgba(239,68,68,.06);
+  border:1px solid rgba(239,68,68,.2);margin-bottom:1.5rem}
+.sb-num{font-family:'Playfair Display',serif;font-size:72px;font-weight:900;
+  color:var(--red-bright);line-height:1;text-shadow:0 0 40px rgba(239,68,68,.3)}
+.sb-label{font-family:'IBM Plex Mono',monospace;font-size:11px;
+  color:var(--red-bright);letter-spacing:.1em;text-transform:uppercase;margin-top:.25rem}
+.metrics-row{display:grid;grid-template-columns:1fr 1fr;gap:.875rem;margin-bottom:1.5rem}
+.metric{padding:1rem;background:rgba(248,247,242,.02);border:1px solid rgba(248,247,242,.06)}
+.metric-label{font-family:'IBM Plex Mono',monospace;font-size:9px;
+  color:rgba(248,247,242,.35);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.375rem}
+.metric-val{font-size:16px;font-weight:700;color:var(--white)}
+.metric-val.safe{color:var(--safe)}
+.metric-val.warn{color:var(--amber)}
+.metric-val.danger{color:var(--red-bright)}
+.lmc-box{padding:1.25rem;
+  background:linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.04));
+  border:1px solid rgba(201,168,76,.3)}
+.lmc-label{font-family:'IBM Plex Mono',monospace;font-size:9px;
+  color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.375rem}
+.lmc-val{font-family:'Playfair Display',serif;font-size:28px;font-weight:900;
+  color:var(--gold);letter-spacing:-1px}
+.lmc-sub{font-size:11px;color:rgba(248,247,242,.4);margin-top:4px}
+.blur-overlay{position:relative}
+.blur-overlay::after{content:'🔒 Desbloqueie com 1 crédito';position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(8,8,6,.7);font-size:11px;color:var(--gold);
+  font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;
+  border:1px solid rgba(201,168,76,.2)}
+.blur-content{filter:blur(6px);pointer-events:none;user-select:none}
+
+/* ── PREÇOS ── */
+.precos{background:linear-gradient(180deg,rgba(28,61,46,.12),rgba(8,8,6,1));border-top:1px solid rgba(201,168,76,.1);
+  border-bottom:1px solid rgba(201,168,76,.1)}
+.precos-head{display:grid;grid-template-columns:1fr auto;gap:2rem;align-items:end}
+.precos-head .sec-title{margin-bottom:.75rem}
+.precos-proof{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:1.75rem}
+.proof-pill{border:1px solid rgba(248,247,242,.09);background:rgba(248,247,242,.025);padding:.75rem .9rem}
+.proof-pill strong{display:block;font-size:15px;color:var(--white);margin-bottom:2px}
+.proof-pill span{font-size:11px;color:rgba(248,247,242,.46);line-height:1.45}
+.precos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;max-width:980px;margin:2.75rem auto 0;align-items:stretch}
+.preco-card{border:1px solid rgba(248,247,242,.11);padding:1.5rem;position:relative;transition:all .25s;overflow:hidden;
+  background:rgba(248,247,242,.025);display:flex;flex-direction:column;min-height:100%}
+.preco-card:hover{transform:translateY(-4px);border-color:rgba(201,168,76,.28);background:rgba(248,247,242,.04)}
+.preco-card.destaque{border-color:rgba(201,168,76,.55);background:linear-gradient(160deg,rgba(201,168,76,.12),rgba(8,8,6,1) 58%);
+  box-shadow:0 18px 45px rgba(0,0,0,.28)}
+.preco-card.destaque::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.preco-badge{position:absolute;top:1rem;right:1rem;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;
+  padding:4px 9px;text-transform:uppercase;border-radius:2px;white-space:nowrap}
+.preco-badge.popular{background:var(--gold);color:var(--black);font-weight:700}
+.preco-badge.free{background:rgba(201,168,76,.1);color:var(--white);border:1px solid rgba(201,168,76,.3)}
+.preco-badge.enterprise{background:rgba(248,247,242,.08);color:rgba(248,247,242,.7);border:1px solid rgba(248,247,242,.14)}
+.preco-icon{font-size:24px;margin-bottom:.85rem;display:block;line-height:1}
+.preco-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin-bottom:.35rem;padding-right:5rem}
+.preco-name.gold{color:var(--gold)}
+.preco-desc{font-size:12px;color:rgba(248,247,242,.52);line-height:1.55;margin-bottom:1.1rem;min-height:38px}
+.preco-main{font-family:'Playfair Display',serif;font-size:34px;font-weight:900;color:var(--white);letter-spacing:-1px;margin-bottom:.2rem}
+.preco-main.gold{color:var(--gold)}
+.preco-period{font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:rgba(248,247,242,.42);font-weight:400;letter-spacing:0;margin-left:4px}
+.preco-note{font-size:11px;color:rgba(248,247,242,.48);margin-bottom:.55rem;font-family:'IBM Plex Mono',monospace}
+.preco-economia{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:5px 9px;margin-bottom:1.25rem;
+  color:var(--safe);background:rgba(34,197,94,.09);border:1px solid rgba(34,197,94,.22);font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em}
+.preco-features{list-style:none;display:flex;flex-direction:column;gap:.625rem;margin-bottom:1.5rem}
+.preco-features li{display:flex;align-items:flex-start;gap:.625rem;font-size:12px;color:rgba(248,247,242,.6);line-height:1.5}
+.pf-check{color:var(--gold);font-size:13px;flex-shrink:0;margin-top:1px}
+.pf-x{color:rgba(248,247,242,.28);font-size:13px;flex-shrink:0;margin-top:1px}
+.preco-cta{display:block;width:100%;padding:12px;text-align:center;font-size:13px;font-weight:700;letter-spacing:.04em;cursor:pointer;
+  border:none;font-family:'IBM Plex Sans',sans-serif;transition:all .2s;text-decoration:none;margin-top:auto;border-radius:2px}
+.preco-cta.lite{background:rgba(248,247,242,.08);border:1px solid rgba(248,247,242,.18);color:var(--white)}
+.preco-cta.lite:hover{background:rgba(248,247,242,.14);border-color:rgba(201,168,76,.28)}
+.preco-cta.pro{background:var(--gold);color:var(--black)}
+.preco-cta.pro:hover{background:#f0c93a;box-shadow:0 8px 24px rgba(201,168,76,.3);transform:translateY(-2px)}
+.preco-footnote{max-width:760px;margin:1.5rem auto 0;text-align:center;font-size:12px;color:rgba(248,247,242,.42);line-height:1.7}
+
+/* ── PARA QUEM É ── */
+.para-quem{background:var(--black)}
+.pq-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem}
+.pq-card{padding:2rem;background:rgba(248,247,242,.02);border:1px solid rgba(248,247,242,.07);
+  transition:all .3s;position:relative;overflow:hidden}
+.pq-card:hover{border-color:rgba(201,168,76,.25);transform:translateY(-3px)}
+.pq-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:var(--gold);transform:scaleX(0);transition:transform .3s}
+.pq-card:hover::after{transform:scaleX(1)}
+.pq-icon{font-size:36px;margin-bottom:1.25rem;display:block}
+.pq-card h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;
+  margin-bottom:.625rem}
+.pq-card p{font-size:13px;color:rgba(248,247,242,.45);line-height:1.75}
+.pq-tag{display:inline-block;margin-top:1rem;font-family:'IBM Plex Mono',monospace;
+  font-size:9px;color:var(--green-m);border:1px solid var(--green-m);
+  padding:3px 8px;letter-spacing:.06em}
+
+/* ── LEILOES PARCEIROS ── */
+.parceiros{background:rgba(248,247,242,.02);
+  border-top:1px solid rgba(248,247,242,.06)}
+.par-grid{display:flex;flex-wrap:wrap;gap:1.5rem;margin-top:2.5rem;align-items:center}
+.par-item{padding:1rem 1.75rem;background:rgba(248,247,242,.03);
+  border:1px solid rgba(248,247,242,.08);font-size:13px;color:rgba(248,247,242,.5);
+  font-family:'IBM Plex Mono',monospace;letter-spacing:.04em;transition:all .2s}
+.par-item:hover{border-color:rgba(201,168,76,.3);color:var(--gold)}
+.par-soon{opacity:.4;font-size:11px}
+
+/* ── CAPTAÇÃO (LEAD FORM) ── */
+.captacao{background:var(--green);position:relative;overflow:hidden}
+.captacao::before{content:'';position:absolute;top:-100px;right:-100px;
+  width:600px;height:600px;border-radius:50%;background:rgba(255,255,255,.04)}
+.captacao::after{content:'';position:absolute;bottom:-80px;left:-80px;
+  width:400px;height:400px;border-radius:50%;background:rgba(0,0,0,.12)}
+.cap-inner{position:relative;z-index:1;display:grid;
+  grid-template-columns:1fr 1fr;gap:4rem;align-items:start}
+.cap-left h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);
+  font-weight:700;line-height:1.15;letter-spacing:-1px;margin-bottom:1rem}
+.cap-left h2 em{color:var(--gold);font-style:italic}
+.cap-left p{font-size:15px;opacity:.75;line-height:1.85;font-weight:300;margin-bottom:2rem}
+.cap-points{display:flex;flex-direction:column;gap:1rem}
+.cap-point{display:flex;align-items:flex-start;gap:.875rem;font-size:13px;opacity:.8;
+  padding:.875rem;background:rgba(0,0,0,.1);border-left:2px solid rgba(201,168,76,.5)}
+.cp-dot{width:20px;height:20px;border-radius:50%;background:var(--gold);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;color:var(--black)}
+.cap-point p{font-size:13px;line-height:1.6;opacity:1}
+.cap-point p strong{color:var(--gold)}
+
+/* Form */
+.cap-form{background:rgba(0,0,0,.25);padding:2.5rem;border:1px solid rgba(255,255,255,.1)}
+.cap-form h3{font-family:'Playfair Display',serif;font-size:22px;
+  font-weight:700;margin-bottom:.5rem}
+.cap-form p{font-size:12px;opacity:.6;margin-bottom:2rem;line-height:1.6}
+.cf-field{margin-bottom:1.25rem}
+.cf-field label{display:block;font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;opacity:.55;margin-bottom:.375rem;
+  font-family:'IBM Plex Mono',monospace}
+.cf-field input,.cf-field select,.cf-field textarea{
+  width:100%;padding:12px 16px;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);color:var(--white);
+  font-family:'IBM Plex Sans',sans-serif;font-size:14px;
+  transition:border-color .2s;outline:none;border-radius:0}
+.cf-field input:focus,.cf-field select:focus,.cf-field textarea:focus{
+  border-color:var(--gold)}
+.cf-field select option{background:var(--green);color:var(--white)}
+.cf-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.btn-submit{width:100%;background:var(--gold);color:var(--black);
+  border:none;padding:16px;font-size:15px;font-weight:700;
+  letter-spacing:.05em;cursor:pointer;transition:all .2s;margin-top:.5rem;
+  font-family:'IBM Plex Sans',sans-serif;display:flex;align-items:center;
+  justify-content:center;gap:8px}
+.btn-submit:hover{background:var(--white);transform:translateY(-2px)}
+.form-note{font-size:10px;opacity:.4;text-align:center;margin-top:1rem;
+  line-height:1.6;font-family:'IBM Plex Mono',monospace;letter-spacing:.03em}
+
+/* ── FOOTER ── */
+.footer{padding:3rem;border-top:1px solid rgba(248,247,242,.06);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem}
+.footer-logo{font-family:'Playfair Display',serif;font-weight:700;font-size:18px;
+  text-decoration:none;color:var(--white)}
+.footer-logo span{color:var(--gold)}
+.footer-links{display:flex;gap:2rem}
+.footer-links a{font-size:12px;color:rgba(248,247,242,.3);text-decoration:none;
+  transition:color .2s}
+.footer-links a:hover{color:var(--gold)}
+.footer-note{font-size:11px;color:rgba(248,247,242,.2);
+  font-family:'IBM Plex Mono',monospace;letter-spacing:.03em}
+
+/* ── NÚMERO ANIMADO ── */
+.hero-stats{display:flex;gap:2.5rem;margin-top:2rem;padding-top:2rem;
+  border-top:1px solid rgba(248,247,242,.07);flex-wrap:wrap}
+.hs{display:flex;flex-direction:column;gap:3px}
+.hs-val{font-family:'Playfair Display',serif;font-size:clamp(22px,3vw,30px);
+  font-weight:700;color:var(--gold);letter-spacing:-1px}
+.hs-lbl{font-size:10px;color:rgba(248,247,242,.4);letter-spacing:.05em;text-transform:uppercase}
+
+/* ── ANIMAÇÕES ── */
+.fade-up{opacity:0;transform:translateY(30px);transition:all .7s ease}
+.fade-up.visible{opacity:1;transform:translateY(0)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .hero-layout,.riscos-grid,.cap-inner{grid-template-columns:1fr}
+  .precos-head{grid-template-columns:1fr}
+  .steps-grid{grid-template-columns:1fr 1fr}
+  .pq-grid,.precos-grid{grid-template-columns:1fr}
+  .cf-row{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .nav{padding:0 1.25rem}
+  section{padding:4rem 1.25rem}
+  .hero{padding:90px 1.25rem 3rem}
+  .steps-grid{grid-template-columns:1fr}
+  .precos-proof{grid-template-columns:1fr}
+  .preco-name{padding-right:4.5rem}
+  .nav-right{display:none}
+  .footer{flex-direction:column;text-align:center}
+  .footer-links{flex-wrap:wrap;justify-content:center}
+}</style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav class="nav">
+  <a class="nav-logo" href="index.html">Avalia<span>AI</span></a>
+  <span class="nav-tag">🔥 RISCO DE LEILÃO</span>
+  <div class="nav-right">
+    <a class="nav-back" href="index.html">← Investor Deck</a>
+    <a href="#como">Como funciona</a>
+    <a href="#riscos">Análise de risco</a>
+    <a href="#precos">Planos</a>
+    <a href="#captacao" class="nav-cta">Quero acesso →</a>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- HERO                                                    -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+  <div class="hero-inner">
+    <div class="hero-eyebrow">
+      <div class="eyebrow-line"></div>
+      <div class="eyebrow-text">Inteligência de mercado · Leilões imobiliários</div>
+    </div>
+
+    <div class="hero-layout">
+      <div class="hero-left fade-up">
+        <h1>
+          Antes de dar<br>
+          seu <span class="danger">lance</span>,<br>
+          <span class="accent">saiba o risco.</span>
+        </h1>
+        <p class="hero-desc">O Termômetro de Risco da AvaliaAI analisa automaticamente cada imóvel em leilão: ocupação, débitos de IPTU e condomínio, processos judiciais e valor real de mercado — para que você nunca pague mais do que deve.</p>
+        <div class="hero-ctas">
+          <a href="#captacao" class="btn-primary" id="hero-cta-primary">Quero analisar grátis →</a>
+          <a href="#riscos" class="btn-outline">Ver como funciona</a>
+        </div>
+        <div class="hero-badges">
+          <div class="hb"><div class="hb-dot"></div>1 análise gratuita</div>
+          <div class="hb"><div class="hb-dot warn"></div>Lance máximo calculado</div>
+          <div class="hb"><div class="hb-dot danger"></div>Alertas de risco em tempo real</div>
+        </div>
+        <div class="hero-stats">
+          <div class="hs"><div class="hs-val" id="stat-leiloes">3.200+</div><div class="hs-lbl">Imóveis monitorados</div></div>
+          <div class="hs"><div class="hs-val">73%</div><div class="hs-lbl">Têm risco oculto</div></div>
+          <div class="hs"><div class="hs-val">R$ 42K</div><div class="hs-lbl">Prejuízo médio evitado</div></div>
+        </div>
+      </div>
+
+      <!-- Termômetro de demo -->
+      <div class="termo-demo fade-up" style="transition-delay:.2s">
+        <div class="td-header">
+          <div class="td-title">⚠ Termômetro de Risco</div>
+          <div class="td-live"><div class="td-live-dot"></div>AO VIVO</div>
+        </div>
+        <div class="td-imovel">
+          <strong>Apt. 3 dorm · Ipiranga, SP</strong><br>
+          Leilão: Sodré Leilões — Lote #0847 · Lance mínimo: R$ 280.000
+        </div>
+        <!-- Termômetro -->
+        <div class="termo-track">
+          <div class="termo-needle" id="demo-needle"></div>
+        </div>
+        <div class="termo-labels">
+          <span>BAIXO</span><span>MÉDIO</span><span>ALTO</span><span>CRÍTICO</span>
+        </div>
+        <div class="termo-score" id="demo-score">72</div>
+        <div class="termo-rating">🔴 Risco Alto — Proceda com cautela</div>
+        <div class="td-rows">
+          <div class="td-row">
+            <span class="td-k">Ocupação do imóvel</span>
+            <span class="td-v danger">🔴 Ocupado 3ª</span>
+          </div>
+          <div class="td-row">
+            <span class="td-k">Débito IPTU</span>
+            <span class="td-v warn">⚠ R$ 14.200</span>
+          </div>
+          <div class="td-row">
+            <span class="td-k">Condomínio em atraso</span>
+            <span class="td-v danger">🔴 R$ 28.600</span>
+          </div>
+          <div class="td-row td-blur-row">
+            <span class="td-k">Processos judiciais</span>
+            <span class="td-v blurred" style="color:var(--red-bright)">3 ativos</span>
+          </div>
+          <div class="td-row td-blur-row">
+            <span class="td-k">Lance Máximo Seguro</span>
+            <span class="td-v blurred" style="color:var(--gold)">R$ 198.000</span>
+          </div>
+        </div>
+        <div class="unlock-hint" onclick="document.getElementById('captacao').scrollIntoView({behavior:'smooth'})">
+          <span>🔒 Desbloqueie a análise completa — 1 crédito gratuito</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- COMO FUNCIONA                                           -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="como" id="como">
+  <div class="max">
+    <div class="sec-eyebrow">
+      <div class="eyebrow-line"></div>
+      <div class="eyebrow-text">Como funciona</div>
+    </div>
+    <h2 class="sec-title fade-up">Da URL do edital ao<br>lance ideal, em minutos</h2>
+    <p class="sec-sub fade-up">Sem planilhas, sem horas de pesquisa. Você cola o link do leilão e nossa IA faz o trabalho pesado.</p>
+    <div class="steps-grid">
+      <div class="step fade-up">
+        <span class="step-icon">🔗</span>
+        <div class="step-num">01</div>
+        <h3>Cole o link do edital</h3>
+        <p>Suporte a Sodré Leilões, Zukerman, Sold, Ellp e outros portais. Basta colar a URL ou informar o endereço do imóvel.</p>
+      </div>
+      <div class="step fade-up" style="transition-delay:.1s">
+        <span class="step-icon">🤖</span>
+        <div class="step-num">02</div>
+        <h3>IA extrai e cruza os dados</h3>
+        <p>Verificamos matrícula, IPTU, condômino, processos no TJ-SP e histórico de ocupação — automaticamente.</p>
+      </div>
+      <div class="step fade-up" style="transition-delay:.2s">
+        <span class="step-icon">🌡️</span>
+        <div class="step-num">03</div>
+        <h3>Receba o Termômetro</h3>
+        <p>Score de risco 0–100, alertas por categoria e o Lance Máximo Seguro calculado com base no valor de mercado real (AVM).</p>
+      </div>
+      <div class="step fade-up" style="transition-delay:.3s">
+        <span class="step-icon">💸</span>
+        <div class="step-num">04</div>
+        <h3>Lance com segurança</h3>
+        <p>Sabendo o risco real, você decide com dados. Negocie com vantagem ou evite um mau negócio antes de perder dinheiro.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- ANÁLISE DE RISCO                                        -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="riscos" id="riscos">
+  <div class="max">
+    <div class="sec-eyebrow">
+      <div class="eyebrow-line"></div>
+      <div class="eyebrow-text">Análise de risco</div>
+    </div>
+    <h2 class="sec-title fade-up">Os riscos que o edital<br>não te conta</h2>
+    <p class="sec-sub fade-up">Quem compra em leilão sem análise profissional descobre os problemas depois da arrematação. Você descobre antes.</p>
+
+    <div class="riscos-grid">
+      <div class="risco-list fade-up">
+        <div class="risco-item danger-r">
+          <div class="ri-icon">🏚️</div>
+          <div class="ri-text">
+            <h4>Imóvel ocupado por terceiros</h4>
+            <p>Desocupação forçada pode levar 12 a 36 meses e custar R$ 30–80K em advogado e processo. Identificamos o status de ocupação antes do lance.</p>
+            <span class="ri-badge d">⚠ Risco Crítico</span>
+          </div>
+        </div>
+        <div class="risco-item warn-r">
+          <div class="ri-icon">📋</div>
+          <div class="ri-text">
+            <h4>Débitos de IPTU e condomínio</h4>
+            <p>Dívidas que acompanham o imóvel (propter rem) — o comprador herda tudo. Calculamos o passivo real para subtrair do lance máximo.</p>
+            <span class="ri-badge w">⚠ Risco Alto</span>
+          </div>
+        </div>
+        <div class="risco-item danger-r">
+          <div class="ri-icon">⚖️</div>
+          <div class="ri-text">
+            <h4>Processos judiciais ativos</h4>
+            <p>Disputas de herança, penhoras e embargos podem inviabilizar a transferência. Cruzamos dados do TJ-SP e CRI automaticamente.</p>
+            <span class="ri-badge d">⚠ Risco Crítico</span>
+          </div>
+        </div>
+        <div class="risco-item warn-r">
+          <div class="ri-icon">📊</div>
+          <div class="ri-text">
+            <h4>Preço acima do valor de mercado</h4>
+            <p>Alguns leilões têm lance mínimo já acima do valor real. Nossa AVM calcula o valor justo com dados de transações ITBI — não anúncios.</p>
+            <span class="ri-badge w">⚠ Risco Médio</span>
+          </div>
+        </div>
+        <div class="risco-item safe-r">
+          <div class="ri-icon">✅</div>
+          <div class="ri-text">
+            <h4>Lance Máximo Seguro</h4>
+            <p>Descontamos todos os custos estimados (débitos, desocupação, reforma, ITBI, comissão) do valor de mercado para calcular o lance que ainda gera lucro.</p>
+            <span class="ri-badge s">✔ Nosso Diferencial</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fade-up" style="transition-delay:.15s">
+        <div class="demo-card">
+          <div class="dc-label">📋 Relatório exemplo — Pro</div>
+          <div class="dc-imovel">Apt. 3 dorm · 82m² — Vila Mariana, SP</div>
+          <div class="dc-end">ROD-2024-3849 · Leilão Zukerman · 2ª praça</div>
+          <div class="score-big">
+            <div class="sb-num">67</div>
+            <div class="sb-label">🟡 Risco Médio — Negociável</div>
+          </div>
+          <div class="metrics-row">
+            <div class="metric">
+              <div class="metric-label">Valor de Mercado</div>
+              <div class="metric-val safe">R$ 580K</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Lance Mínimo</div>
+              <div class="metric-val warn">R$ 345K</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Débitos Totais</div>
+              <div class="metric-val danger">R$ 41.200</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Margem Potencial</div>
+              <div class="metric-val safe">R$ 193K</div>
+            </div>
+          </div>
+          <div class="lmc-box">
+            <div class="lmc-label">🎯 Lance Máximo Seguro</div>
+            <div class="lmc-val">R$ 392.000</div>
+            <div class="lmc-sub">Inclui custos de desocupação + ITBI + débitos</div>
+          </div>
+        </div>
+
+        <div class="blur-overlay" style="margin-top:1rem">
+          <div class="blur-content">
+            <div class="demo-card">
+              <div class="dc-label">📑 Processos no TJ-SP</div>
+              <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.75rem">
+                <div style="padding:.75rem;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);font-size:12px;color:rgba(248,247,242,.6)">Ação de execução fiscal — PFPJ São Paulo · R$ 14.200</div>
+                <div style="padding:.75rem;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.15);font-size:12px;color:rgba(248,247,242,.6)">Embargo declaratórios — 3ª Vara Cível · Em andamento</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- PARA QUEM É                                             -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="para-quem" id="para-quem">
+  <div class="max">
+    <div class="sec-eyebrow">
+      <div class="eyebrow-line"></div>
+      <div class="eyebrow-text">Para quem é</div>
+    </div>
+    <h2 class="sec-title fade-up">Quem não pode arriscar<br>precisa de dados reais</h2>
+    <div class="pq-grid">
+      <div class="pq-card fade-up">
+        <span class="pq-icon">🏦</span>
+        <h3>Investidores de leilão</h3>
+        <p>Você participa de leilões regularmente e sabe que um erro pode custar R$ 30–100K. Nossa análise protege cada arrematação e maximiza sua margem.</p>
+        <span class="pq-tag">ANÁLISE EM ESCALA</span>
+      </div>
+      <div class="pq-card fade-up" style="transition-delay:.1s">
+        <span class="pq-icon">🏠</span>
+        <h3>Compradores de primeira vez</h3>
+        <p>Quer comprar seu primeiro imóvel em leilão mas tem medo dos riscos? Nossa plataforma te mostra exatamente o que está comprando — sem surpresas.</p>
+        <span class="pq-tag">SEGURANÇA TOTAL</span>
+      </div>
+      <div class="pq-card fade-up" style="transition-delay:.2s">
+        <span class="pq-icon">👔</span>
+        <h3>Corretores e assessores</h3>
+        <p>Ofereça análise de risco profissional para seus clientes. Diferencie seu serviço e justifique sua comissão com inteligência de dados que ninguém mais tem.</p>
+        <span class="pq-tag">DIFERENCIAL PRO</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- LEILÕES PARCEIROS                                       -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="parceiros">
+  <div class="max">
+    <div class="sec-eyebrow">
+      <div class="eyebrow-line"></div>
+      <div class="eyebrow-text">Leiloeiros cobertos</div>
+    </div>
+    <h2 class="sec-title fade-up">Monitoramos os maiores<br>leilões do Brasil</h2>
+    <p class="sec-sub fade-up">Integração direta com os principais portais — sem copiar e colar. Basta informar o número do lote ou endereço.</p>
+    <div class="par-grid fade-up">
+      <div class="par-item">Sodré Leilões</div>
+      <div class="par-item">Zukerman</div>
+      <div class="par-item">Sold Leilões</div>
+      <div class="par-item">Ellp</div>
+      <div class="par-item">Leilões Judiciais SP</div>
+      <div class="par-item par-soon">+ Caixa Econômica (em breve)</div>
+      <div class="par-item par-soon">+ Banco do Brasil (em breve)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- PLANOS E PREÇOS                                         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="precos" id="precos">
+  <div class="max">
+    <div class="precos-head">
+      <div>
+        <div class="sec-eyebrow">
+          <div class="eyebrow-line"></div>
+          <div class="eyebrow-text">Créditos de análise</div>
+        </div>
+        <h2 class="sec-title fade-up">Escolha quantos riscos<br>quer tirar da frente</h2>
+        <p class="sec-sub fade-up">Sem mensalidade. Você compra créditos quando precisa analisar um imóvel e entra no beta com 1 relatório gratuito.</p>
+      </div>
+      <div class="precos-proof fade-up">
+        <div class="proof-pill"><strong>R$ 19,90</strong><span>menor custo por análise</span></div>
+        <div class="proof-pill"><strong>1 crédito</strong><span>desbloqueia um imóvel completo</span></div>
+        <div class="proof-pill"><strong>PDF</strong><span>pronto para sócios e clientes</span></div>
+      </div>
+    </div>
+
+    <div class="precos-grid fade-up">
+      <!-- Starter -->
+      <div class="preco-card">
+        <span class="preco-badge free">INICIANTE</span>
+        <span class="preco-icon">🌱</span>
+        <div class="preco-name">Starter</div>
+        <div class="preco-desc">Para validar um leilão pontual antes de dar o primeiro lance.</div>
+        <div class="preco-main">R$ 97</div>
+        <div class="preco-note">3 análises completas · R$ 32,33 cada</div>
+        <div class="preco-economia">Inclui 1 crédito grátis no beta</div>
+        <ul class="preco-features">
+          <li><span class="pf-check">✦</span> Termômetro de Risco 0-100</li>
+          <li><span class="pf-check">✦</span> Ocupação, ações e débitos estimados</li>
+          <li><span class="pf-check">✦</span> Valor de mercado por dados reais</li>
+          <li><span class="pf-x">✘</span> Lance Máximo Seguro avançado</li>
+          <li><span class="pf-x">✘</span> PDF para compartilhar</li>
+        </ul>
+        <a href="#captacao" class="preco-cta lite" id="cta-starter">Entrar na lista Starter →</a>
+      </div>
+
+      <!-- Pro -->
+      <div class="preco-card destaque">
+        <span class="preco-badge popular">MELHOR CUSTO</span>
+        <span class="preco-icon">⚡</span>
+        <div class="preco-name gold">Pro</div>
+        <div class="preco-desc">Para quem acompanha editais toda semana e precisa decidir rápido.</div>
+        <div class="preco-main gold">R$ 247</div>
+        <div class="preco-note">10 análises completas · R$ 24,70 cada</div>
+        <div class="preco-economia">Economize 24% por análise</div>
+        <ul class="preco-features">
+          <li><span class="pf-check">✦</span> Tudo do Starter</li>
+          <li><span class="pf-check">✦</span> Lance Máximo Seguro calculado</li>
+          <li><span class="pf-check">✦</span> Débitos organizados por impacto</li>
+          <li><span class="pf-check">✦</span> Relatório PDF para parceiros</li>
+          <li><span class="pf-check">✦</span> Priorização no processamento</li>
+        </ul>
+        <a href="#captacao" class="preco-cta pro" id="cta-pro">Quero acesso Pro →</a>
+      </div>
+
+      <!-- Escala -->
+      <div class="preco-card">
+        <span class="preco-badge enterprise">ESCALA</span>
+        <span class="preco-icon">👑</span>
+        <div class="preco-name">Escala</div>
+        <div class="preco-desc">Para assessorias, fundos e operadores que analisam carteiras.</div>
+        <div class="preco-main">R$ 597</div>
+        <div class="preco-note">30 análises premium · R$ 19,90 cada</div>
+        <div class="preco-economia">Menor custo por imóvel</div>
+        <ul class="preco-features">
+          <li><span class="pf-check">✦</span> Tudo do Pro</li>
+          <li><span class="pf-check">✦</span> 30 consultas de risco total</li>
+          <li><span class="pf-check">✦</span> Inteligência de viabilidade</li>
+          <li><span class="pf-check">✦</span> Suporte prioritário via WhatsApp</li>
+          <li><span class="pf-check">✦</span> Indicado para análise em lote</li>
+        </ul>
+        <a href="#captacao" class="preco-cta lite" id="cta-unlimited">Falar sobre Escala →</a>
+      </div>
+    </div>
+    <p class="preco-footnote fade-up">Os botões levam para o acesso antecipado porque a compra ainda depende da liberação do beta. Você entra na lista, recebe o crédito gratuito e escolhe o pacote quando a plataforma abrir.</p>
+  </div>
+</section>
+<!-- ════════════════════════════════════════════════════════ -->
+<section class="captacao" id="captacao">
+  <div class="max">
+    <div class="sec-eyebrow">
+      <div class="eyebrow-line" style="background:var(--gold)"></div>
+      <div class="eyebrow-text" style="color:rgba(248,247,242,.6)">Acesso antecipado</div>
+    </div>
+    <div class="cap-inner">
+      <div class="cap-left">
+        <h2>Garanta sua <em>análise<br>gratuita</em> agora</h2>
+        <p>Cadastre-se para receber seu primeiro crédito de análise gratuito e ter acesso antecipado à plataforma. Avisamos você assim que o produto estiver 100% disponível.</p>
+        <div class="cap-points">
+          <div class="cap-point">
+            <div class="cp-dot">1</div>
+            <p><strong>1 análise completa grátis</strong> — Termômetro, ocupação, débitos e processos sem custo nenhum.</p>
+          </div>
+          <div class="cap-point">
+            <div class="cp-dot">2</div>
+            <p><strong>Lance Máximo Seguro calculado</strong> — Saiba exatamente até quanto pode oferecer e ainda lucrar.</p>
+          </div>
+          <div class="cap-point">
+            <div class="cp-dot">3</div>
+            <p><strong>Sem mensalidade</strong> — Pague apenas pelas análises que usar. <strong>Sem surpresas.</strong></p>
+          </div>
+          <div class="cap-point">
+            <div class="cp-dot">4</div>
+            <p><strong>Acesso beta exclusivo</strong> — Os primeiros 200 cadastros ganham 3 análises extras no lançamento.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="cap-form">
+        <h3>Quero acesso gratuito</h3>
+        <p>Preencha para receber sua análise gratuita e entrar na lista de acesso antecipado.</p>
+        <div class="cf-field">
+          <label>Seu nome completo *</label>
+          <input type="text" placeholder="João Silva" id="lead-name" autocomplete="name">
+        </div>
+        <div class="cf-row">
+          <div class="cf-field">
+            <label>E-mail *</label>
+            <input type="email" placeholder="email@exemplo.com" id="lead-email" autocomplete="email">
+          </div>
+          <div class="cf-field">
+            <label>WhatsApp *</label>
+            <input type="tel" placeholder="(11) 99999-9999" id="lead-whatsapp" autocomplete="tel">
+          </div>
+        </div>
+        <div class="cf-field">
+          <label>Perfil *</label>
+          <select id="lead-perfil">
+            <option value="">Selecione...</option>
+            <option value="investidor_ativo">Investidor de leilão ativo</option>
+            <option value="comprador_unico">Comprador de primeira vez</option>
+            <option value="corretor">Corretor / Assessor imobiliário</option>
+            <option value="advogado">Advogado / Perito</option>
+            <option value="fundo">Fundo imobiliário / Family Office</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="cf-field">
+          <label>Quantos leilões você analisa por mês?</label>
+          <select id="lead-volume">
+            <option value="">Selecione...</option>
+            <option value="1-3">1 a 3</option>
+            <option value="4-10">4 a 10</option>
+            <option value="10+">Mais de 10</option>
+            <option value="nenhum">Ainda não analiso — quero começar</option>
+          </select>
+        </div>
+        <button class="btn-submit" id="submit-lead">
+          <span>🎁</span> Quero minha análise gratuita →
+        </button>
+        <div class="form-note">🔒 Sem spam. Sem cobrança. Apenas avisamos quando estiver pronto.<br>Seus dados são protegidos pela LGPD.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer class="footer">
+  <a class="footer-logo" href="index.html">Avalia<span>AI</span></a>
+  <div class="footer-links">
+    <a href="index.html">← Investor Deck</a>
+    <a href="dashboard.html">Dashboard</a>
+  </div>
+  <div class="footer-note">© 2025 AvaliaAI · Produto: Risco de Leilão · Powered by IA + NBR 14.653</div>
+</footer>
+
+<script>
+// ── SCROLL ANIMATIONS ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) entry.target.classList.add('visible');
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+// ── TERMÔMETRO ANIMADO ──
+function animateTermometro() {
+  const needle = document.getElementById('demo-needle');
+  const score = document.getElementById('demo-score');
+  if (!needle || !score) return;
+  // Anima a entrada
+  needle.style.left = '0%';
+  setTimeout(() => { needle.style.left = '72%'; }, 300);
+  // Contagem do score
+  let current = 0;
+  const target = 72;
+  const duration = 2000;
+  const start = Date.now();
+  function tick() {
+    const elapsed = Date.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    current = Math.floor(eased * target);
+    score.textContent = current;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  setTimeout(() => requestAnimationFrame(tick), 500);
+}
+
+// Dispara quando o hero ficar visível
+const heroObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      animateTermometro();
+      heroObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.3 });
+const heroEl = document.querySelector('.termo-demo');
+if (heroEl) heroObserver.observe(heroEl);
+
+// ── NAV SCROLL ──
+window.addEventListener('scroll', () => {
+  const nav = document.querySelector('.nav');
+  nav.style.borderBottomColor = window.pageYOffset > 100
+    ? 'rgba(201,168,76,.25)' : 'rgba(201,168,76,.15)';
+}, { passive: true });
+
+// ── FORM SUBMIT ──
+const submitBtn = document.getElementById('submit-lead');
+if (submitBtn) {
+  submitBtn.addEventListener('click', async function(e) {
+    e.preventDefault();
+    const name = document.getElementById('lead-name').value.trim();
+    const email = document.getElementById('lead-email').value.trim();
+    const whatsapp = document.getElementById('lead-whatsapp').value.trim();
+    const perfil = document.getElementById('lead-perfil').value;
+
+    if (!name || !email || !whatsapp || !perfil) {
+      submitBtn.innerHTML = '<span>⚠</span> Preencha todos os campos obrigatórios';
+      submitBtn.style.background = '#8B1A1A';
+      submitBtn.style.color = 'var(--white)';
+      setTimeout(() => {
+        submitBtn.innerHTML = '<span>🎁</span> Quero minha análise gratuita →';
+        submitBtn.style.background = '';
+        submitBtn.style.color = '';
+      }, 2500);
+      return;
+    }
+
+    submitBtn.textContent = 'Enviando...';
+    submitBtn.disabled = true;
+
+    // Tenta salvar no Supabase se disponível
+    try {
+      const { createClient } = supabase;
+      const sb = createClient(
+        'https://dxlbibjwfheygxdbipwj.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4bGJpYmp3ZmhleWd4ZGJpcHdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4OTY5MDMsImV4cCI6MjA2MDQ3MjkwM30.BbWwYgL16N7D6z0pjU5YBuCWFO5tNTbT_cGPkW1vkgc'
+      );
+      await sb.from('leads_leilao').insert([{
+        nome: name, email, whatsapp,
+        perfil: document.getElementById('lead-perfil').value,
+        volume: document.getElementById('lead-volume').value,
+        produto: 'risco_leilao',
+        criado_em: new Date().toISOString()
+      }]);
+    } catch(err) {
+      console.log('Supabase não configurado, lead registrado localmente');
+    }
+
+    submitBtn.innerHTML = '✔ Cadastro realizado! Você receberá seu acesso em breve.';
+    submitBtn.style.background = 'var(--green-m)';
+    submitBtn.style.color = 'var(--white)';
+  });
+}
+
+// ── SMOOTH SCROLL PARA CTAs ──
+document.querySelectorAll('a[href="#captacao"]').forEach(el => {
+  el.addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('captacao').scrollIntoView({ behavior: 'smooth' });
+  });
+});
+</script>
+</body>
+</html>
